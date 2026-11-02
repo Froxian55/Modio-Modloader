@@ -147,8 +147,8 @@ export class ModioClient {
 
   async unsubscribe(gameId: string, modId: string): Promise<void> {
     await this.request(
-      `games/${encodeURIComponent(gameId)}/mods/${encodeURIComponent(modId)}/unsubscribe`,
-      { method: "POST" },
+      `games/${encodeURIComponent(gameId)}/mods/${encodeURIComponent(modId)}/subscribe`,
+      { method: "DELETE" },
     );
   }
 
