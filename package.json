@@ -1,6 +1,6 @@
 {
   "name": "modio-manager-desktop",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "A desktop mod.io library and discovery browser",
   "main": "dist/electron/main.js",
@@ -10,7 +10,7 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "typecheck": "tsc -p tsconfig.electron.json && tsc -p tsconfig.renderer.json",
     "start": "electron .",
-    "package:win": "npm run build && electron-builder --win nsis --x64"
+    "package:win": "npm run build && electron-builder --win nsis --x64 --publish never"
   },
   "dependencies": {
     "react": "^19.2.0",

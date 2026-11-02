@@ -25,7 +25,7 @@ If PowerShell blocks the `npm` script, use `npm.cmd` instead.
 npm.cmd run package:win
 ```
 
-The installer is created in the `release` folder as `Modio-Manager-Setup-2.0.0.exe`.
+The installer is created in the `release` folder as `Modio-Manager-Setup-2.0.1.exe`.
 
 ## Publish a GitHub Release
 
@@ -47,10 +47,10 @@ To publish a release, update the `version` in `package.json`, commit and push yo
 
 ```powershell
 git add .
-git commit -m "Prepare v2.0.0 release"
+git commit -m "Prepare v2.0.1 release"
 git push origin main
-git tag v2.0.0
-git push origin v2.0.0
+git tag v2.0.1
+git push origin v2.0.1
 ```
 
 Replace the example version with the version in `package.json`. Use your repository's default branch if it is not named `main`. After the workflow completes, the installer will be available in the repository's **Releases** section. Each release must use a unique tag.
