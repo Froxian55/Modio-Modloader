@@ -178,7 +178,7 @@ export class ModioClient {
       _offset: offset,
       _sort: `${sortDirection === "desc" ? "-" : ""}${sortField}`,
       ...(query.trim() ? { _q: query.trim() } : {}),
-      ...(tagFilters.length ? { _tags: tagFilters.join(","), _tags_mode: "AND" } : {}),
+      ...(tagFilters.length ? { tags: tagFilters.join(",") } : {}),
     });
     return data.map(parseMod).filter((mod): mod is CatalogMod => mod !== null);
   }
@@ -196,7 +196,7 @@ export class ModioClient {
   async subscribe(gameId: string, modId: string): Promise<void> {
     await this.request(
       `games/${encodeURIComponent(gameId)}/mods/${encodeURIComponent(modId)}/subscribe`,
-      { method: "POST" },
+      { method: "POST", body: new URLSearchParams() },
     );
   }
 
