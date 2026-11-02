@@ -1,0 +1,26 @@
+import { contextBridge, ipcRenderer } from "electron";
+import type { GameSettingsInput, ModioDesktopApi } from "./types";
+
+const api: ModioDesktopApi = {
+  getInitialState: () => ipcRenderer.invoke("app:initial-state"),
+  requestLoginCode: (input) => ipcRenderer.invoke("auth:request-code", input),
+  verifyLoginCode: (code) => ipcRenderer.invoke("auth:verify-code", code),
+  refreshSubscriptions: () => ipcRenderer.invoke("subscriptions:refresh"),
+  logout: () => ipcRenderer.invoke("auth:logout"),
+  browseGames: (input) => ipcRenderer.invoke("catalog:games", input),
+  browseMods: (input) => ipcRenderer.invoke("catalog:mods", input),
+  getSubscribedModDetails: (gameId) => ipcRenderer.invoke("subscriptions:details", gameId),
+  unsubscribeFromMod: (input) => ipcRenderer.invoke("subscriptions:unsubscribe", input),
+  subscribeToMod: (input) => ipcRenderer.invoke("catalog:subscribe", input),
+  saveGameSettings: (input: GameSettingsInput) => ipcRenderer.invoke("games:save-settings", input),
+  chooseGameFolder: (gameId) => ipcRenderer.invoke("games:choose-folder", gameId),
+  syncGames: (gameIds) => ipcRenderer.invoke("sync:games", gameIds),
+  windowAction: (action) => ipcRenderer.send("window:action", action),
+  onSyncProgress: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, message: string) => callback(message);
+    ipcRenderer.on("sync:progress", listener);
+    return () => ipcRenderer.removeListener("sync:progress", listener);
+  },
+};
+
+contextBridge.exposeInMainWorld("modio", api);

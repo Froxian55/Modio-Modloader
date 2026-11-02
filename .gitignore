@@ -1,0 +1,13 @@
+node_modules/
+dist/
+release/
+*.log
+*.local
+.env*
+!.env.example
+modio_config*.json
+*.pem
+*.pfx
+*.key
+ModioManager/bin/
+ModioManager/obj/

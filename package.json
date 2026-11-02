@@ -1,0 +1,52 @@
+{
+  "name": "modio-manager-desktop",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A desktop mod.io library and discovery browser",
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "dev": "npm run build:electron && concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "build": "npm run build:electron && vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "typecheck": "tsc -p tsconfig.electron.json && tsc -p tsconfig.renderer.json",
+    "start": "electron .",
+    "package:win": "npm run build && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/yauzl": "^2.10.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.2.1",
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5",
+    "wait-on": "^9.0.3"
+  },
+  "build": {
+    "appId": "com.modio.manager",
+    "productName": "Modio Manager",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Modio-Manager-Setup-${version}.${ext}"
+    }
+  }
+}
