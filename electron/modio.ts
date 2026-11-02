@@ -13,10 +13,40 @@ import type {
 const pageSize = 100;
 const minimumRequestIntervalMs = 250;
 const maxRateLimitRetries = 4;
+const cacheLimit = 200;
+const catalogCacheDurationMs = 60_000;
+const metadataCacheDurationMs = 10 * 60_000;
 
 let requestQueue: Promise<void> = Promise.resolve();
 let nextRequestAt = 0;
 let rateLimitUntil = 0;
+const responseCache = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
+
+function getCachedValue<T>(key: string, durationMs: number, load: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  for (const [cachedKey, entry] of responseCache) {
+    if (entry.expiresAt <= now) responseCache.delete(cachedKey);
+  }
+
+  const cached = responseCache.get(key);
+  if (cached) return cached.promise as Promise<T>;
+
+  while (responseCache.size >= cacheLimit) {
+    const oldestKey = responseCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    responseCache.delete(oldestKey);
+  }
+
+  const entry = {
+    expiresAt: now + durationMs,
+    promise: Promise.resolve().then(load),
+  };
+  responseCache.set(key, entry);
+  void entry.promise.catch(() => {
+    if (responseCache.get(key) === entry) responseCache.delete(key);
+  });
+  return entry.promise as Promise<T>;
+}
 
 function enqueueModioRequest(request: () => Promise<Response>): Promise<Response> {
   const result = requestQueue.then(async () => {
@@ -119,31 +149,37 @@ export class ModioClient {
   }
 
   private async getModDetails(mod: SubscribedMod): Promise<CatalogMod> {
-    const response = await this.request(
-      `games/${encodeURIComponent(mod.gameId)}/mods/${encodeURIComponent(mod.modId)}`,
-    );
-    const parsed = parseMod(await response.json() as Record<string, unknown>);
-    if (!parsed) throw new Error(`mod.io returned invalid details for mod ${mod.modId}.`);
-    return parsed;
+    const cacheKey = `${this.config.userId}:mod:${mod.gameId}:${mod.modId}`;
+    return getCachedValue(cacheKey, metadataCacheDurationMs, async () => {
+      const response = await this.request(
+        `games/${encodeURIComponent(mod.gameId)}/mods/${encodeURIComponent(mod.modId)}`,
+      );
+      const parsed = parseMod(await response.json() as Record<string, unknown>);
+      if (!parsed) throw new Error(`mod.io returned invalid details for mod ${mod.modId}.`);
+      return parsed;
+    });
   }
 
   private async getAvailablePlatforms(mod: SubscribedMod): Promise<Platform[]> {
-    const platforms = new Set<Platform>();
-    for (let offset = 0; ; offset += pageSize) {
-      const files = await this.getData(
-        `games/${encodeURIComponent(mod.gameId)}/mods/${encodeURIComponent(mod.modId)}/files`,
-        { _limit: pageSize, _offset: offset },
-      );
-      for (const file of files) {
-        if (!Array.isArray(file.platforms)) continue;
-        for (const entry of file.platforms) {
-          const platform = objectValue(entry)?.platform;
-          if (platform === "windows" || platform === "android") platforms.add(platform);
+    const cacheKey = `${this.config.userId}:platforms:${mod.gameId}:${mod.modId}`;
+    return getCachedValue(cacheKey, metadataCacheDurationMs, async () => {
+      const platforms = new Set<Platform>();
+      for (let offset = 0; ; offset += pageSize) {
+        const files = await this.getData(
+          `games/${encodeURIComponent(mod.gameId)}/mods/${encodeURIComponent(mod.modId)}/files`,
+          { _limit: pageSize, _offset: offset },
+        );
+        for (const file of files) {
+          if (!Array.isArray(file.platforms)) continue;
+          for (const entry of file.platforms) {
+            const platform = objectValue(entry)?.platform;
+            if (platform === "windows" || platform === "android") platforms.add(platform);
+          }
         }
+        if (files.length < pageSize) break;
       }
-      if (files.length < pageSize) break;
-    }
-    return [...platforms];
+      return [...platforms];
+    });
   }
 
   async getGame(id: string): Promise<CatalogGame> {
@@ -155,13 +191,17 @@ export class ModioClient {
   }
 
   async getGames(query: string, offset: number, limit: number): Promise<CatalogGame[]> {
-    const data = await this.getData("games", {
-      _limit: limit,
-      _offset: offset,
-      _sort: "-popular",
-      ...(query.trim() ? { _q: query.trim() } : {}),
+    const actualQuery = query.trim();
+    const cacheKey = `${this.config.userId}:games:${actualQuery}:${offset}:${limit}`;
+    return getCachedValue(cacheKey, catalogCacheDurationMs, async () => {
+      const data = await this.getData("games", {
+        _limit: limit,
+        _offset: offset,
+        _sort: "-popular",
+        ...(actualQuery ? { _q: actualQuery } : {}),
+      });
+      return data.map(parseGame).filter((game): game is CatalogGame => game !== null);
     });
-    return data.map(parseGame).filter((game): game is CatalogGame => game !== null);
   }
 
   async getMods(
@@ -173,23 +213,31 @@ export class ModioClient {
     sortDirection: SortDirection,
     tagFilters: string[],
   ): Promise<CatalogMod[]> {
-    const data = await this.getData(`games/${encodeURIComponent(gameId)}/mods`, {
-      _limit: limit,
-      _offset: offset,
-      _sort: `${sortDirection === "desc" ? "-" : ""}${sortField}`,
-      ...(query.trim() ? { _q: query.trim() } : {}),
-      ...(tagFilters.length ? { tags: tagFilters.join(",") } : {}),
+    const actualQuery = query.trim();
+    const actualTags = [...tagFilters].sort();
+    const cacheKey = `${this.config.userId}:mods:${gameId}:${actualQuery}:${offset}:${limit}:${sortField}:${sortDirection}:${actualTags.join(",")}`;
+    return getCachedValue(cacheKey, catalogCacheDurationMs, async () => {
+      const data = await this.getData(`games/${encodeURIComponent(gameId)}/mods`, {
+        _limit: limit,
+        _offset: offset,
+        _sort: `${sortDirection === "desc" ? "-" : ""}${sortField}`,
+        ...(actualQuery ? { _q: actualQuery } : {}),
+        ...(actualTags.length ? { tags: actualTags.join(",") } : {}),
+      });
+      return data.map(parseMod).filter((mod): mod is CatalogMod => mod !== null);
     });
-    return data.map(parseMod).filter((mod): mod is CatalogMod => mod !== null);
   }
 
   async getGameTagGroups(gameId: string): Promise<CatalogTagGroup[]> {
-    const data = await this.getData(`games/${encodeURIComponent(gameId)}/tags`, { _limit: pageSize });
-    return data.flatMap((entry) => {
-      const name = stringValue(entry.name);
-      if (!name || !Array.isArray(entry.tags)) return [];
-      const tags = entry.tags.filter((tag): tag is string => typeof tag === "string" && tag.length > 0);
-      return tags.length ? [{ name, tags }] : [];
+    const cacheKey = `${this.config.userId}:tag-groups:${gameId}`;
+    return getCachedValue(cacheKey, metadataCacheDurationMs, async () => {
+      const data = await this.getData(`games/${encodeURIComponent(gameId)}/tags`, { _limit: pageSize });
+      return data.flatMap((entry) => {
+        const name = stringValue(entry.name);
+        if (!name || !Array.isArray(entry.tags)) return [];
+        const tags = entry.tags.filter((tag): tag is string => typeof tag === "string" && tag.length > 0);
+        return tags.length ? [{ name, tags }] : [];
+      });
     });
   }
 
