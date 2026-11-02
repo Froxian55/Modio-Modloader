@@ -1,49 +1,49 @@
 # Modio Manager
 
-Windows için Electron, TypeScript ve React ile hazırlanmış mod.io masaüstü mod yöneticisi. Mod.io'nun resmi REST API'si kullanılır; API anahtarı ve oturum belirteci renderer/arayüz katmanına aktarılmaz.
+A Windows desktop mod manager built with Electron, TypeScript, and React. It uses mod.io's official REST API and keeps API keys and access tokens out of the renderer process.
 
-## Gereksinimler
+## Requirements
 
-- Windows 10 veya üzeri
-- Node.js 22 veya üzeri
+- Windows 10 or later
+- Node.js 22 or later
 - npm
 
-## Geliştirme
+## Development
 
-PowerShell'de proje klasörünü açıp çalıştırın:
+Open PowerShell in the project folder and run:
 
 ```powershell
 npm.cmd install
 npm.cmd run dev
 ```
 
-PowerShell npm betiklerini engelliyorsa `npm` yerine `npm.cmd` kullanın.
+If PowerShell blocks the `npm` script, use `npm.cmd` instead.
 
-## Windows uygulaması oluşturma
+## Build the Windows installer
 
 ```powershell
 npm.cmd run package:win
 ```
 
-Kurulum paketi `release` klasörüne `Modio-Manager-Setup-2.0.0.exe` adıyla oluşturulur.
+The installer is created in the `release` folder as `Modio-Manager-Setup-2.0.0.exe`.
 
-## GitHub Release olarak yayımlama
+## Publish a GitHub Release
 
-`.github/workflows/release.yml` workflow'u, `v` ile başlayan her Git etiketi gönderildiğinde Windows x64 kurulum EXE'sini oluşturur ve GitHub deposunda aynı etiket için bir Release açarak dosyayı ekler.
+The `.github/workflows/release.yml` workflow builds a Windows x64 installer and attaches it to a GitHub Release whenever a Git tag beginning with `v` is pushed.
 
-İlk kez yüklerken PowerShell'de proje klasöründe şu komutları çalıştırın:
+For the first upload, run these commands in the project folder:
 
 ```powershell
 git init -b main
-git remote add origin https://github.com/KULLANICI/DEPO.git
+git remote add origin https://github.com/USERNAME/REPOSITORY.git
 git add .
 git commit -m "Initial release"
 git push -u origin main
 ```
 
-`KULLANICI/DEPO` kısmını kendi GitHub deponuzla değiştirin. GitHub deposu boş olmalı; Actions için depo ayarlarında workflow izinleri etkin olmalıdır.
+Replace `USERNAME/REPOSITORY` with your GitHub repository. The repository should be empty, and GitHub Actions must be enabled.
 
-Yayımlamak için `package.json` içindeki `version` değerini güncelledikten ve değişiklikleri `main` dalına gönderdikten sonra sürüm etiketini gönderin:
+To publish a release, update the `version` in `package.json`, commit and push your changes to `main`, then push a new version tag:
 
 ```powershell
 git add .
@@ -53,27 +53,27 @@ git tag v2.0.0
 git push origin v2.0.0
 ```
 
-`main` yerine deponuzun varsayılan dal adını, sürüm örneği yerine `package.json` sürümünü kullanın. Workflow tamamlanınca EXE, GitHub deposunun **Releases** bölümünde indirmeye hazır olur. Sürüm etiketi her yayımlamada benzersiz olmalıdır.
+Replace the example version with the version in `package.json`. Use your repository's default branch if it is not named `main`. After the workflow completes, the installer will be available in the repository's **Releases** section. Each release must use a unique tag.
 
-## Özellikler
+## Features
 
-- Mod.io e-posta kodu ile giriş ve abonelikleri eşitleme
-- Abone olunan oyunlar için görselli kütüphane, platform ve ZIP çıkarma ayarları
-- Oyun/mod kataloğunda arama, sayfalı sonuçlar ve modlara abone olma
-- Oyun klasörlerine mod indirme, ZIP'leri güvenli çıkarma veya arşivi olduğu gibi kaydetme
-- Eşitleme ve hesap durumu için işlem günlüğü
-- Koyu, özel Electron masaüstü arayüzü
+- Sign in with a mod.io email verification code and sync subscriptions
+- Browse subscribed games with artwork and configure platform and ZIP extraction options
+- Search the game and mod catalogs, browse paginated results, and subscribe to mods
+- Download mods into game folders and safely extract ZIP archives or save them as-is
+- View account and sync activity
+- Use a custom dark desktop interface
 
-Oyun/mod katalog sonuçları her sayfada 40 öğe gösterir. Modlara abone olmak ve kütüphaneyi eşitlemek için mod.io hesabında oturum açın.
+Game and mod catalog results are shown 40 items per page. Sign in to your mod.io account to subscribe to mods and sync your library.
 
-## Yerel ayarlar ve eski sürüm
+## Local settings and the previous version
 
-Güncel ayarlar `%LOCALAPPDATA%\ModioManager\modio_config.electron.json` dosyasında tutulur. API anahtarı ve oturum belirteci Electron `safeStorage` ile Windows kullanıcı hesabına bağlı olarak şifrelenir. Oyun klasörleri ve indirme tercihleri aynı dosyada saklanır.
+Current settings are stored in `%LOCALAPPDATA%\ModioManager\modio_config.electron.json`. The API key and access token are encrypted with Electron `safeStorage`, tied to the current Windows user account. Game folders and download preferences are stored in the same file.
 
-Önceki WPF sürümünün kaynak kodu `ModioManager` klasöründe bırakılmıştır; değiştirmeden önce alınan kaynak yedeği `backups\pre-electron-20261102-185852` klasöründedir. İlk çalıştırmada eski `%LOCALAPPDATA%\ModioManager\modio_config.json` dosyasındaki oyun klasörleri ve User ID içe alınır. Electron güvenli depolaması önceki DPAPI biçiminden farklı olduğundan API anahtarını bir kez yeniden girip giriş yapmanız gerekir. Eski ayar dosyası değiştirilmez.
+The previous WPF source code is retained in the `ModioManager` folder. A source backup created before the migration is in `backups\pre-electron-20261102-185852`. On first launch, the app imports game folders and the User ID from the previous `%LOCALAPPDATA%\ModioManager\modio_config.json` file. Because Electron's secure storage differs from the previous DPAPI format, you must enter your API key and sign in again once. The previous settings file is not modified.
 
-## Proje yapısı
+## Project structure
 
-- `electron`: Güvenli ana süreç, API, yerel ayarlar, IPC ve eşitleme
-- `renderer`: React + TypeScript kullanıcı arayüzü
-- `ModioManager`: Önceki WPF/C# uygulama kaynakları
+- `electron`: Secure main process, API client, local settings, IPC, and synchronization
+- `renderer`: React and TypeScript user interface
+- `ModioManager`: Previous WPF/C# application source
