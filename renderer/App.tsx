@@ -337,7 +337,7 @@ export default function App() {
   }
 
   if (!loaded) {
-    return <div className="boot-screen"><img className="brand-icon" src="/app-icon.ico" alt=""/><span>Starting Modio Manager</span></div>;
+    return <div className="boot-screen"><img className="brand-icon" src="./app-icon.ico" alt=""/><span>Starting Modio Manager</span></div>;
   }
 
   if (!state.signedIn) {
@@ -345,7 +345,7 @@ export default function App() {
       <div className="app-shell auth-shell">
         <header className="titlebar">
           <div className="brand-lockup">
-            <img className="brand-icon" src="/app-icon.ico" alt=""/>
+            <img className="brand-icon" src="./app-icon.ico" alt=""/>
             <div><strong>MODIO</strong><span>MOD MANAGER</span></div>
           </div>
           <div className="window-caption">Your mods, organized.</div>
@@ -357,7 +357,7 @@ export default function App() {
         </header>
         <main className="auth-page">
           <section className="auth-card">
-            <img className="auth-logo" src="/app-icon.ico" alt="Modio Manager"/>
+            <img className="auth-logo" src="./app-icon.ico" alt="Modio Manager"/>
             <span className="eyebrow accent">WELCOME BACK</span>
             <h1>Sign in to mod.io</h1>
             <p className="auth-intro">Connect your account to browse and manage your subscribed mods.</p>
@@ -406,7 +406,7 @@ export default function App() {
     <div className="app-shell">
       <header className="titlebar">
         <div className="brand-lockup">
-          <img className="brand-icon" src="/app-icon.ico" alt=""/>
+          <img className="brand-icon" src="./app-icon.ico" alt=""/>
           <div><strong>MODIO</strong><span>MOD MANAGER</span></div>
         </div>
         <div className="window-caption">Your mods, organized.</div>
