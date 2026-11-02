@@ -35,4 +35,7 @@ jobs:
         with:
           name: Modio Manager ${{ github.ref_name }}
           generate_release_notes: true
-          files: release/*.exe
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml

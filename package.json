@@ -1,6 +1,6 @@
 {
   "name": "modio-manager-desktop",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "description": "A desktop mod.io library and discovery browser",
   "main": "dist/electron/main.js",
@@ -13,6 +13,7 @@
     "package:win": "npm run build && electron-builder --win nsis --x64 --publish never"
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "yauzl": "^3.2.0"
@@ -33,6 +34,14 @@
   "build": {
     "appId": "com.modio.manager",
     "productName": "Modio Manager",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Froxian55",
+        "repo": "Modio-Modloader",
+        "releaseType": "release"
+      }
+    ],
     "directories": {
       "output": "release"
     },

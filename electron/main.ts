@@ -1,9 +1,12 @@
 import { app, BrowserWindow, dialog, ipcMain, safeStorage } from "electron";
+import { autoUpdater } from "electron-updater";
+import type { ProgressInfo, UpdateInfo } from "electron-updater";
 import path from "node:path";
 import { loadConfig, getConfigPath, saveConfig } from "./config";
 import { ModioClient } from "./modio";
 import { syncMods } from "./sync";
 import type {
+  AppUpdateState,
   AppConfig,
   GameMapping,
   GameSettingsInput,
@@ -20,6 +23,60 @@ let config: AppConfig = { apiKey: "", userId: "", accessToken: "", games: {} };
 let subscriptions: SubscribedMod[] = [];
 let startupMessage: string | undefined;
 let syncRunning = false;
+let updateState: AppUpdateState = { status: "idle" };
+
+function setUpdateState(next: AppUpdateState): void {
+  updateState = next;
+  mainWindow?.webContents.send("updates:state", next);
+}
+
+function formatReleaseNotes(info: UpdateInfo): string {
+  if (typeof info.releaseNotes === "string") return info.releaseNotes;
+  if (!Array.isArray(info.releaseNotes)) return "";
+  return info.releaseNotes
+    .map((item) => item.note)
+    .filter((note): note is string => Boolean(note))
+    .join("\n\n");
+}
+
+function setupAutoUpdater(): void {
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.allowPrerelease = false;
+  autoUpdater.on("checking-for-update", () => setUpdateState({ status: "checking" }));
+  autoUpdater.on("update-available", (info) => setUpdateState({
+    status: "available",
+    version: info.version,
+    releaseNotes: formatReleaseNotes(info),
+  }));
+  autoUpdater.on("update-not-available", () => setUpdateState({ status: "not-available" }));
+  autoUpdater.on("download-progress", (progress: ProgressInfo) => setUpdateState({
+    status: "downloading",
+    version: updateState.version,
+    releaseNotes: updateState.releaseNotes,
+    percent: progress.percent,
+  }));
+  autoUpdater.on("update-downloaded", (info) => setUpdateState({
+    status: "downloaded",
+    version: info.version,
+    releaseNotes: formatReleaseNotes(info),
+  }));
+  autoUpdater.on("error", (error) => setUpdateState({
+    status: "error",
+    version: updateState.version,
+    releaseNotes: updateState.releaseNotes,
+    message: error.message,
+  }));
+
+  void autoUpdater.checkForUpdates().catch((error: unknown) => {
+    setUpdateState({
+      status: "error",
+      message: getErrorMessage(error),
+    });
+  });
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -57,6 +114,36 @@ function createWindow(): void {
 }
 
 function registerHandlers(): void {
+  ipcMain.handle("updates:get-state", () => updateState);
+
+  ipcMain.handle("updates:download", async () => {
+    if (updateState.status !== "available" && !(updateState.status === "error" && updateState.version)) {
+      throw new Error("There is no available update to download.");
+    }
+    setUpdateState({
+      status: "downloading",
+      version: updateState.version,
+      releaseNotes: updateState.releaseNotes,
+      percent: 0,
+    });
+    try {
+      await autoUpdater.downloadUpdate();
+    } catch (error) {
+      setUpdateState({
+        status: "error",
+        version: updateState.version,
+        releaseNotes: updateState.releaseNotes,
+        message: getErrorMessage(error),
+      });
+      throw error;
+    }
+  });
+
+  ipcMain.on("updates:install", () => {
+    if (updateState.status !== "downloaded") return;
+    autoUpdater.quitAndInstall(false, true);
+  });
+
   ipcMain.handle("app:initial-state", async () => {
     if (!await safeStorage.isAsyncEncryptionAvailable()) {
       startupMessage = "Secure Windows credential storage is unavailable. Credentials will not be saved.";
@@ -339,6 +426,7 @@ void app.whenReady().then(async () => {
   }
   registerHandlers();
   createWindow();
+  setupAutoUpdater();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

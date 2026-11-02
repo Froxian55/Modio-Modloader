@@ -78,6 +78,14 @@ export interface GameSettingsInput {
   selected?: boolean;
 }
 
+export interface AppUpdateState {
+  status: "idle" | "checking" | "not-available" | "available" | "downloading" | "downloaded" | "error";
+  version?: string;
+  releaseNotes?: string;
+  percent?: number;
+  message?: string;
+}
+
 export interface ModioDesktopApi {
   getInitialState(): Promise<PublicAppState>;
   requestLoginCode(input: { apiKey: string; userId: string; email: string }): Promise<void>;
@@ -92,6 +100,10 @@ export interface ModioDesktopApi {
   saveGameSettings(input: GameSettingsInput): Promise<PublicAppState>;
   chooseGameFolder(gameId: string): Promise<PublicAppState | null>;
   syncGames(gameIds: string[]): Promise<void>;
+  getUpdateState(): Promise<AppUpdateState>;
+  downloadUpdate(): Promise<void>;
+  installUpdate(): void;
+  onUpdateState(callback: (state: AppUpdateState) => void): () => void;
   onSyncProgress(callback: (message: string) => void): () => void;
   windowAction(action: "minimize" | "toggle-maximize" | "close"): void;
 }

@@ -4,6 +4,7 @@ import type {
   CatalogGame,
   CatalogMod,
   GameSettingsInput,
+  AppUpdateState,
   Platform,
   PublicAppState,
   SubscribedGame,
@@ -52,6 +53,8 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [activity, setActivity] = useState<string[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [appUpdate, setAppUpdate] = useState<AppUpdateState>({ status: "idle" });
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   const announce = useCallback((message: string) => {
     setToast(message);
@@ -86,6 +89,29 @@ export default function App() {
       unsubscribe();
     };
   }, [announce, applyState]);
+
+  useEffect(() => {
+    let receivedEvent = false;
+    const unsubscribe = window.modio.onUpdateState((next) => {
+      receivedEvent = true;
+      if (next.status === "available" || next.status === "downloaded") setUpdateDismissed(false);
+      setAppUpdate(next);
+    });
+    void window.modio.getUpdateState()
+      .then((next) => {
+        if (!receivedEvent) setAppUpdate(next);
+      })
+      .catch((error: unknown) => announce(`Could not check for app updates: ${errorMessage(error)}`));
+    return unsubscribe;
+  }, [announce]);
+
+  useEffect(() => {
+    if (appUpdate.status === "error" && appUpdate.message) {
+      announce(`App update error: ${appUpdate.message}`);
+    } else if (appUpdate.status === "not-available") {
+      announce("The app is up to date.");
+    }
+  }, [announce, appUpdate.message, appUpdate.status]);
 
   useEffect(() => {
     if (!userId && state.userId) setUserId(state.userId);
@@ -282,6 +308,14 @@ export default function App() {
     if (result !== undefined) setSyncing(false);
   }
 
+  async function downloadAppUpdate() {
+    try {
+      await window.modio.downloadUpdate();
+    } catch (error) {
+      announce(`Could not download the update: ${errorMessage(error)}`);
+    }
+  }
+
   if (!loaded) {
     return <div className="boot-screen"><div className="brand-mark">M</div><span>Starting Modio Manager</span></div>;
   }
@@ -431,6 +465,15 @@ export default function App() {
       {busy && <div className="busy-indicator"><span className="spinner"/>{busyLabel || "Working…"}</div>}
       {toast && !busy && <div className="toast"><span className="toast-dot"/> {toast}</div>}
       {selectedMod && <ModDetails mod={selectedMod} gameName={selectedCatalogGame?.name || "mod.io game"} onClose={() => setSelectedMod(null)}/>}
+      {(appUpdate.status === "available" || appUpdate.status === "downloading" || appUpdate.status === "downloaded"
+        || (appUpdate.status === "error" && Boolean(appUpdate.version))) && !updateDismissed && (
+        <UpdateDialog
+          update={appUpdate}
+          onLater={() => setUpdateDismissed(true)}
+          onDownload={() => void downloadAppUpdate()}
+          onInstall={() => window.modio.installUpdate()}
+        />
+      )}
     </div>
   );
 }
@@ -793,6 +836,63 @@ function ModDetails({ mod, gameName, onClose }: { mod: CatalogMod; gameName: str
         <h2>{mod.name}</h2>
         <p>{mod.summary || "No description was provided for this mod."}</p>
         <div className="modal-stats"><StatCard label="DOWNLOADS" value={mod.downloads} icon="↓" tone="blue"/><StatCard label="SUBSCRIBERS" value={mod.subscribers} icon="◈" tone="mint"/></div>
+      </section>
+    </div>
+  );
+}
+
+function UpdateDialog({ update, onLater, onDownload, onInstall }: {
+  update: AppUpdateState;
+  onLater: () => void;
+  onDownload: () => void;
+  onInstall: () => void;
+}) {
+  const isDownloading = update.status === "downloading";
+  const isDownloaded = update.status === "downloaded";
+  const canRetry = update.status === "error" && Boolean(update.version);
+  return (
+    <div className="modal-backdrop update-backdrop">
+      <section className="update-dialog" role="dialog" aria-modal="true" aria-labelledby="update-title">
+        <div className="update-icon">↑</div>
+        <span className="eyebrow accent">UPDATE AVAILABLE</span>
+        <h2 id="update-title">Modio Manager {update.version}</h2>
+        <p className="update-description">
+          {isDownloaded
+            ? "The update is ready. Restart the app to install it."
+            : isDownloading
+              ? "Downloading the update. You can keep using the app."
+              : canRetry
+                ? "The update download failed. You can try again."
+                : "A newer version is ready to install. Would you like to update now?"}
+        </p>
+        {isDownloading && (
+          <div className="update-progress">
+            <div className="update-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, update.percent || 0))}%` }}/></div>
+            <span>{Math.floor(update.percent || 0)}%</span>
+          </div>
+        )}
+        {update.releaseNotes && (
+          <div className="update-notes">
+            <strong>What’s new</strong>
+            <p>{update.releaseNotes}</p>
+          </div>
+        )}
+        <div className="update-actions">
+          {!isDownloaded && (
+            <button type="button" className="text-button" onClick={onLater}>
+              {isDownloading ? "Run in background" : "Later"}
+            </button>
+          )}
+          {isDownloaded ? (
+            <button type="button" className="primary-button" onClick={onInstall}>Restart &amp; install</button>
+          ) : isDownloading ? (
+            <button type="button" className="primary-button" disabled>Downloading…</button>
+          ) : (
+            <button type="button" className="primary-button" onClick={onDownload}>
+              {canRetry ? "Retry download" : "Download and install"}
+            </button>
+          )}
+        </div>
       </section>
     </div>
   );

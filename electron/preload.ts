@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { GameSettingsInput, ModioDesktopApi } from "./types";
+import type { AppUpdateState, GameSettingsInput, ModioDesktopApi } from "./types";
 
 const api: ModioDesktopApi = {
   getInitialState: () => ipcRenderer.invoke("app:initial-state"),
@@ -15,6 +15,14 @@ const api: ModioDesktopApi = {
   saveGameSettings: (input: GameSettingsInput) => ipcRenderer.invoke("games:save-settings", input),
   chooseGameFolder: (gameId) => ipcRenderer.invoke("games:choose-folder", gameId),
   syncGames: (gameIds) => ipcRenderer.invoke("sync:games", gameIds),
+  getUpdateState: () => ipcRenderer.invoke("updates:get-state"),
+  downloadUpdate: () => ipcRenderer.invoke("updates:download"),
+  installUpdate: () => ipcRenderer.send("updates:install"),
+  onUpdateState: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, state: AppUpdateState) => callback(state);
+    ipcRenderer.on("updates:state", listener);
+    return () => ipcRenderer.removeListener("updates:state", listener);
+  },
   windowAction: (action) => ipcRenderer.send("window:action", action),
   onSyncProgress: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string) => callback(message);
