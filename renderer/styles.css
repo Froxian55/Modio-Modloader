@@ -30,7 +30,8 @@ button:disabled { cursor: not-allowed !important; opacity: .48; }
 .app-shell { display: flex; flex-direction: column; height: 100%; min-width: 900px; background: var(--canvas); }
 .titlebar { height: 54px; flex: 0 0 54px; display: flex; align-items: center; padding: 0 16px 0 22px; background: #0e1626; border-bottom: 1px solid #1d2b40; -webkit-app-region: drag; user-select: none; }
 .brand-lockup { display: flex; align-items: center; gap: 10px; min-width: 240px; }
-.brand-mark { width: 30px; height: 30px; display: grid; place-items: center; color: #07271f; border-radius: 9px; background: var(--mint); font: 700 18px "Segoe UI", sans-serif; box-shadow: 0 4px 18px #4ddbb22b; }
+.brand-icon { display: block; width: 32px; height: 32px; object-fit: contain; border-radius: 8px; }
+.boot-screen .brand-icon { width: 48px; height: 48px; }
 .brand-lockup strong { display: block; font: 700 12px "Segoe UI", sans-serif; letter-spacing: .12em; }
 .brand-lockup span { display: block; color: #7889a3; font-size: 8px; font-weight: 700; letter-spacing: .16em; margin-top: 2px; }
 .window-caption { flex: 1; text-align: center; color: #71819a; font-size: 10px; letter-spacing: .04em; }
@@ -62,6 +63,17 @@ button:disabled { cursor: not-allowed !important; opacity: .48; }
 .sign-in-form label { margin-top: 3px; color: #aab7ca; font-size: 9px; font-weight: 600; }
 .sign-in-form input { width: 100%; height: 34px; padding: 0 10px; color: #edf2fb; border: 1px solid #2b3b55; border-radius: 7px; background: #0c1525; font-size: 11px; }
 .sign-in-form small { color: #7688a2; font-size: 9px; line-height: 1.45; }
+.auth-page { display: grid; flex: 1; place-items: center; min-height: 0; overflow-y: auto; padding: 38px 24px; background: radial-gradient(ellipse at 50% 37%, #152640 0, #0b1020 61%); }
+.auth-card { width: min(420px, 100%); padding: 34px; border: 1px solid #293a54; border-radius: 17px; background: linear-gradient(150deg, #151f32, #101827); box-shadow: 0 25px 80px #0005; }
+.auth-logo { display: block; width: 58px; height: 58px; margin: 0 auto 23px; object-fit: contain; border-radius: 13px; box-shadow: 0 8px 26px #0004; }
+.auth-card > .eyebrow { display: block; text-align: center; }
+.auth-card h1 { margin: 8px 0 7px; color: #edf2fb; font: 600 25px "Segoe UI", sans-serif; letter-spacing: -.04em; text-align: center; }
+.auth-intro { margin: 0 0 22px; color: #91a0b7; font-size: 11px; line-height: 1.6; text-align: center; }
+.auth-sign-in-form { gap: 10px; }
+.auth-sign-in-form label { margin-top: 2px; font-size: 10px; }
+.auth-sign-in-form input { height: 40px; font-size: 12px; }
+.auth-sign-in-form small { margin-top: 3px; text-align: center; }
+.auth-change-email { align-self: center; }
 .sidebar-spacer { flex: 1; min-height: 24px; }
 .storage-note { display: flex; align-items: center; gap: 10px; margin: 0 3px 12px; padding: 12px 10px; border-radius: 9px; background: #121e2d; }
 .storage-icon { color: var(--mint); font-size: 20px; }
@@ -247,6 +259,10 @@ button:disabled { cursor: not-allowed !important; opacity: .48; }
 .selected-catalog-game .eyebrow { font-size: 7px; }
 .selected-catalog-game strong { margin-top: 3px; font-size: 12px; }
 .mods-search-bar { margin-bottom: 19px; }
+.mod-sort-controls { display: flex; justify-content: flex-end; gap: 10px; margin: -7px 0 18px; }
+.mod-sort-controls label { display: flex; align-items: center; gap: 7px; color: #8494ac; font-size: 9px; }
+.mod-sort-controls select { min-width: 150px; height: 32px; padding: 0 9px; color: #dce5f2; border: 1px solid #2a3a53; border-radius: 7px; background: #111b2b; font-size: 9px; }
+.mod-sort-controls select:disabled { opacity: .6; }
 .mod-card-grid { display: grid; grid-template-columns: repeat(4, minmax(145px, 1fr)); gap: 11px; }
 .mod-card { display: flex; flex-direction: column; min-width: 0; min-height: 224px; padding: 9px; border: 1px solid #25354d; border-radius: 11px; background: linear-gradient(150deg, #151f32, #111b2c); transition: .15s; }
 .mod-card:hover { border-color: #3b5f5b; transform: translateY(-2px); }

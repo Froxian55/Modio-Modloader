@@ -1,4 +1,6 @@
 export type Platform = "windows" | "android";
+export type ModSortField = "popular" | "rating" | "downloads" | "subscribers";
+export type SortDirection = "asc" | "desc";
 
 export interface GameMapping {
   gameName: string;
@@ -93,7 +95,14 @@ export interface ModioDesktopApi {
   refreshSubscriptions(): Promise<PublicAppState>;
   logout(): Promise<PublicAppState>;
   browseGames(input: { query: string; offset: number; limit: number }): Promise<CatalogGame[]>;
-  browseMods(input: { gameId: string; query: string; offset: number; limit: number }): Promise<CatalogMod[]>;
+  browseMods(input: {
+    gameId: string;
+    query: string;
+    offset: number;
+    limit: number;
+    sortField: ModSortField;
+    sortDirection: SortDirection;
+  }): Promise<CatalogMod[]>;
   getSubscribedModDetails(gameId: string): Promise<SubscribedModDetails[]>;
   unsubscribeFromMod(input: { gameId: string; modId: string }): Promise<PublicAppState>;
   subscribeToMod(input: { gameId: string; modId: string }): Promise<void>;

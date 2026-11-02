@@ -10,8 +10,10 @@ import type {
   AppConfig,
   GameMapping,
   GameSettingsInput,
+  ModSortField,
   Platform,
   PublicAppState,
+  SortDirection,
   SubscribedGame,
   SubscribedMod,
 } from "./types";
@@ -214,13 +216,22 @@ function registerHandlers(): void {
     );
   });
 
-  ipcMain.handle("catalog:mods", async (_event, input: { gameId: string; query: string; offset: number; limit: number }) => {
+  ipcMain.handle("catalog:mods", async (_event, input: {
+    gameId: string;
+    query: string;
+    offset: number;
+    limit: number;
+    sortField: string;
+    sortDirection: string;
+  }) => {
     const gameId = requireString(input?.gameId, "Game ID");
     const mods = await new ModioClient(config).getMods(
       gameId,
       requireString(input?.query ?? "", "Search query"),
       requireInteger(input?.offset, "Offset"),
       clampLimit(input?.limit),
+      requireModSortField(input?.sortField),
+      requireSortDirection(input?.sortDirection),
     );
     const subscribed = new Set(subscriptions.map((mod) => `${mod.gameId}:${mod.modId}`));
     return mods.map((mod) => ({ ...mod, isSubscribed: subscribed.has(`${mod.gameId}:${mod.id}`) }));
@@ -410,6 +421,18 @@ function requireInteger(value: unknown, label: string): number {
 
 function clampLimit(value: unknown): number {
   return Math.min(Math.max(requireInteger(value, "Page size"), 1), 100);
+}
+
+function requireModSortField(value: unknown): ModSortField {
+  if (value === "popular" || value === "rating" || value === "downloads" || value === "subscribers") {
+    return value;
+  }
+  throw new Error("Choose a supported mod sort field.");
+}
+
+function requireSortDirection(value: unknown): SortDirection {
+  if (value === "asc" || value === "desc") return value;
+  throw new Error("Choose ascending or descending sort order.");
 }
 
 function getErrorMessage(error: unknown): string {

@@ -1,6 +1,6 @@
 {
   "name": "modio-manager-desktop",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "private": true,
   "description": "A desktop mod.io library and discovery browser",
   "main": "dist/electron/main.js",
@@ -50,11 +50,15 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/app-icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/app-icon.ico",
+      "uninstallerIcon": "assets/app-icon.ico",
+      "installerHeaderIcon": "assets/app-icon.ico",
       "artifactName": "Modio-Manager-Setup-${version}.${ext}"
     }
   }

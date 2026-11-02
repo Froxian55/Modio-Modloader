@@ -1,4 +1,13 @@
-import type { AppConfig, CatalogGame, CatalogMod, Platform, SubscribedMod, SubscribedModDetails } from "./types";
+import type {
+  AppConfig,
+  CatalogGame,
+  CatalogMod,
+  ModSortField,
+  Platform,
+  SortDirection,
+  SubscribedMod,
+  SubscribedModDetails,
+} from "./types";
 
 const pageSize = 100;
 
@@ -112,11 +121,18 @@ export class ModioClient {
     return data.map(parseGame).filter((game): game is CatalogGame => game !== null);
   }
 
-  async getMods(gameId: string, query: string, offset: number, limit: number): Promise<CatalogMod[]> {
+  async getMods(
+    gameId: string,
+    query: string,
+    offset: number,
+    limit: number,
+    sortField: ModSortField,
+    sortDirection: SortDirection,
+  ): Promise<CatalogMod[]> {
     const data = await this.getData(`games/${encodeURIComponent(gameId)}/mods`, {
       _limit: limit,
       _offset: offset,
-      _sort: "-popular",
+      _sort: `${sortDirection === "desc" ? "-" : ""}${sortField}`,
       ...(query.trim() ? { _q: query.trim() } : {}),
     });
     return data.map(parseMod).filter((mod): mod is CatalogMod => mod !== null);

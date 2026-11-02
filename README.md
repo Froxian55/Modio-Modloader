@@ -25,7 +25,7 @@ If PowerShell blocks the `npm` script, use `npm.cmd` instead.
 npm.cmd run package:win
 ```
 
-The installer is created in the `release` folder as `Modio-Manager-Setup-2.0.2.exe`.
+The installer is created in the `release` folder as `Modio-Manager-Setup-2.0.3.exe`.
 
 ## Publish a GitHub Release
 
@@ -47,10 +47,10 @@ To publish a release, update the `version` in `package.json`, commit and push yo
 
 ```powershell
 git add .
-git commit -m "Prepare v2.0.2 release"
+git commit -m "Prepare v2.0.3 release"
 git push origin main
-git tag v2.0.2
-git push origin v2.0.2
+git tag v2.0.3
+git push origin v2.0.3
 ```
 
 Replace the example version with the version in `package.json`. Use your repository's default branch if it is not named `main`. After the workflow completes, the installer will be available in the repository's **Releases** section. Each release must use a unique tag.
@@ -62,6 +62,7 @@ Installed versions check this GitHub Release feed at startup. When a newer versi
 - Sign in with a mod.io email verification code and sync subscriptions
 - Browse subscribed games with artwork and configure platform and ZIP extraction options
 - Search the game and mod catalogs, browse paginated results, and subscribe to mods
+- Sort mod catalogs by popularity, rating, downloads, or subscribers in ascending or descending order
 - Download mods into game folders and safely extract ZIP archives or save them as-is
 - View account and sync activity
 - Use a custom dark desktop interface

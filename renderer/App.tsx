@@ -5,8 +5,10 @@ import type {
   CatalogMod,
   GameSettingsInput,
   AppUpdateState,
+  ModSortField,
   Platform,
   PublicAppState,
+  SortDirection,
   SubscribedGame,
   SubscribedModDetails,
 } from "../electron/types";
@@ -47,6 +49,8 @@ export default function App() {
   const [hasMoreCatalogMods, setHasMoreCatalogMods] = useState(false);
   const [modQuery, setModQuery] = useState("");
   const [modOffset, setModOffset] = useState(0);
+  const [modSortField, setModSortField] = useState<ModSortField>("popular");
+  const [modSortDirection, setModSortDirection] = useState<SortDirection>("desc");
   const [selectedMod, setSelectedMod] = useState<CatalogMod | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("");
@@ -231,7 +235,14 @@ export default function App() {
     setModQuery("");
     setModOffset(0);
     const results = await runAction(`Loading ${game.name} mods…`, () =>
-      window.modio.browseMods({ gameId: game.id, query: "", offset: 0, limit: pageSize }));
+      window.modio.browseMods({
+        gameId: game.id,
+        query: "",
+        offset: 0,
+        limit: pageSize,
+        sortField: modSortField,
+        sortDirection: modSortDirection,
+      }));
     if (results) {
       setCatalogMods(results);
       setModOffset(results.length);
@@ -239,7 +250,12 @@ export default function App() {
     }
   }
 
-  async function searchMods(query = modQuery, append = false) {
+  async function searchMods(
+    query = modQuery,
+    append = false,
+    sortField = modSortField,
+    sortDirection = modSortDirection,
+  ) {
     if (!selectedCatalogGame) return;
     const actualQuery = query.trim();
     const offset = append ? modOffset : 0;
@@ -249,9 +265,13 @@ export default function App() {
         query: actualQuery,
         offset,
         limit: pageSize,
+        sortField,
+        sortDirection,
       }));
     if (!results) return;
     setModQuery(actualQuery);
+    setModSortField(sortField);
+    setModSortDirection(sortDirection);
     setCatalogMods((current) => append ? [...current, ...results] : results);
     setModOffset(offset + results.length);
     setHasMoreCatalogMods(results.length === pageSize);
@@ -317,14 +337,76 @@ export default function App() {
   }
 
   if (!loaded) {
-    return <div className="boot-screen"><div className="brand-mark">M</div><span>Starting Modio Manager</span></div>;
+    return <div className="boot-screen"><img className="brand-icon" src="/app-icon.ico" alt=""/><span>Starting Modio Manager</span></div>;
+  }
+
+  if (!state.signedIn) {
+    return (
+      <div className="app-shell auth-shell">
+        <header className="titlebar">
+          <div className="brand-lockup">
+            <img className="brand-icon" src="/app-icon.ico" alt=""/>
+            <div><strong>MODIO</strong><span>MOD MANAGER</span></div>
+          </div>
+          <div className="window-caption">Your mods, organized.</div>
+          <div className="window-controls">
+            <button aria-label="Minimize" onClick={() => window.modio.windowAction("minimize")}>−</button>
+            <button aria-label="Maximize" onClick={() => window.modio.windowAction("toggle-maximize")}>□</button>
+            <button className="close-control" aria-label="Close" onClick={() => window.modio.windowAction("close")}>×</button>
+          </div>
+        </header>
+        <main className="auth-page">
+          <section className="auth-card">
+            <img className="auth-logo" src="/app-icon.ico" alt="Modio Manager"/>
+            <span className="eyebrow accent">WELCOME BACK</span>
+            <h1>Sign in to mod.io</h1>
+            <p className="auth-intro">Connect your account to browse and manage your subscribed mods.</p>
+            <form className="sign-in-form auth-sign-in-form" onSubmit={(event) => void (codeSent ? verifyCode(event) : requestCode(event))}>
+              {!state.apiKeyConfigured && (
+                <>
+                  <label>API key</label>
+                  <input value={apiKey} onChange={(event) => setApiKey(event.target.value)} type="password" autoComplete="off" required/>
+                  <label>Numeric user ID</label>
+                  <input value={userId} onChange={(event) => setUserId(event.target.value)} inputMode="numeric"
+                         pattern="[0-9]+" autoComplete="off" required/>
+                </>
+              )}
+              <label>Account email</label>
+              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required/>
+              {codeSent && (
+                <>
+                  <label>Security code</label>
+                  <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required/>
+                </>
+              )}
+              <button className="primary-button full-width" type="submit" disabled={busy}>
+                {codeSent ? "Verify and sign in" : "Send sign-in code"}
+              </button>
+              {codeSent && <button className="text-button auth-change-email" type="button" onClick={() => setCodeSent(false)}>Use a different email</button>}
+              <small>Credentials are encrypted locally with Windows secure storage.</small>
+            </form>
+          </section>
+        </main>
+        {busy && <div className="busy-indicator"><span className="spinner"/>{busyLabel || "Working…"}</div>}
+        {toast && !busy && <div className="toast"><span className="toast-dot"/> {toast}</div>}
+        {(appUpdate.status === "available" || appUpdate.status === "downloading" || appUpdate.status === "downloaded"
+          || (appUpdate.status === "error" && Boolean(appUpdate.version))) && !updateDismissed && (
+          <UpdateDialog
+            update={appUpdate}
+            onLater={() => setUpdateDismissed(true)}
+            onDownload={() => void downloadAppUpdate()}
+            onInstall={() => window.modio.installUpdate()}
+          />
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="app-shell">
       <header className="titlebar">
         <div className="brand-lockup">
-          <div className="brand-mark">M</div>
+          <img className="brand-icon" src="/app-icon.ico" alt=""/>
           <div><strong>MODIO</strong><span>MOD MANAGER</span></div>
         </div>
         <div className="window-caption">Your mods, organized.</div>
@@ -451,6 +533,9 @@ export default function App() {
               catalogMods={catalogMods}
               modQuery={modQuery}
               searchMods={searchMods}
+              modSortField={modSortField}
+              modSortDirection={modSortDirection}
+              setModSort={(field, direction) => void searchMods(modQuery, false, field, direction)}
               modOffset={modOffset}
               hasMoreCatalogMods={hasMoreCatalogMods}
               setSelectedMod={setSelectedMod}
@@ -736,6 +821,9 @@ interface DiscoverPageProps {
   catalogMods: CatalogMod[];
   modQuery: string;
   searchMods: (query?: string, append?: boolean) => Promise<void>;
+  modSortField: ModSortField;
+  modSortDirection: SortDirection;
+  setModSort: (field: ModSortField, direction: SortDirection) => void;
   modOffset: number;
   hasMoreCatalogMods: boolean;
   setSelectedMod: (mod: CatalogMod) => void;
@@ -793,6 +881,32 @@ function DiscoverPage(props: DiscoverPageProps) {
               onKeyDown={(event) => { if (event.key === "Enter") void props.searchMods(modInput, false); }}
               placeholder={`Search ${props.selectedCatalogGame.name} mods…`}/></label>
             <button className="primary-button" disabled={props.busy} onClick={() => void props.searchMods(modInput, false)}>Search mods <span>↗</span></button>
+          </div>
+          <div className="mod-sort-controls">
+            <label>
+              <span>Sort by</span>
+              <select value={props.modSortField} disabled={props.busy} onChange={(event) =>
+                {
+                  const field = parseModSortField(event.target.value);
+                  if (field) props.setModSort(field, props.modSortDirection);
+                }}>
+                <option value="popular">Popularity</option>
+                <option value="rating">Likes / rating</option>
+                <option value="downloads">Downloads</option>
+                <option value="subscribers">Favorites / subscriptions</option>
+              </select>
+            </label>
+            <label>
+              <span>Order</span>
+              <select value={props.modSortDirection} disabled={props.busy} onChange={(event) =>
+                {
+                  const direction = parseSortDirection(event.target.value);
+                  if (direction) props.setModSort(props.modSortField, direction);
+                }}>
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
+              </select>
+            </label>
           </div>
           <div className="section-title-row"><div><h2>Community mods</h2><span>Tap a mod for details · subscribe to add it to your library</span></div><span className="result-count">{props.catalogMods.length} shown</span></div>
           {props.catalogMods.length ? (
@@ -916,6 +1030,16 @@ function EmptyPanel({ title, copy, action, onAction }: { title: string; copy: st
 
 function truncate(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+}
+
+function parseModSortField(value: string): ModSortField | null {
+  if (value === "popular" || value === "rating" || value === "downloads" || value === "subscribers") return value;
+  return null;
+}
+
+function parseSortDirection(value: string): SortDirection | null {
+  if (value === "asc" || value === "desc") return value;
+  return null;
 }
 
 function errorMessage(error: unknown): string {
