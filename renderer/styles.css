@@ -259,10 +259,14 @@ button:disabled { cursor: not-allowed !important; opacity: .48; }
 .selected-catalog-game .eyebrow { font-size: 7px; }
 .selected-catalog-game strong { margin-top: 3px; font-size: 12px; }
 .mods-search-bar { margin-bottom: 19px; }
-.mod-sort-controls { display: flex; justify-content: flex-end; gap: 10px; margin: -7px 0 18px; }
+.mod-sort-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin: -7px 0 18px; }
 .mod-sort-controls label { display: flex; align-items: center; gap: 7px; color: #8494ac; font-size: 9px; }
 .mod-sort-controls select { min-width: 150px; height: 32px; padding: 0 9px; color: #dce5f2; border: 1px solid #2a3a53; border-radius: 7px; background: #111b2b; font-size: 9px; }
 .mod-sort-controls select:disabled { opacity: .6; }
+.clear-filters-button { height: 32px; padding: 0 10px; color: #9eb0c8; border: 1px solid #2a3a53; border-radius: 7px; background: #111b2b; font-size: 9px; cursor: pointer; }
+.clear-filters-button:hover:not(:disabled) { color: #e8edf7; border-color: #4a607d; }
+.clear-filters-button:disabled { cursor: not-allowed; opacity: .5; }
+.filter-empty-note { color: #71819a; font-size: 9px; }
 .mod-card-grid { display: grid; grid-template-columns: repeat(4, minmax(145px, 1fr)); gap: 11px; }
 .mod-card { display: flex; flex-direction: column; min-width: 0; min-height: 224px; padding: 9px; border: 1px solid #25354d; border-radius: 11px; background: linear-gradient(150deg, #151f32, #111b2c); transition: .15s; }
 .mod-card:hover { border-color: #3b5f5b; transform: translateY(-2px); }

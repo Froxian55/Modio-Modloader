@@ -9,6 +9,7 @@ const api: ModioDesktopApi = {
   logout: () => ipcRenderer.invoke("auth:logout"),
   browseGames: (input) => ipcRenderer.invoke("catalog:games", input),
   browseMods: (input) => ipcRenderer.invoke("catalog:mods", input),
+  getGameTagGroups: (gameId) => ipcRenderer.invoke("catalog:tag-groups", gameId),
   getSubscribedModDetails: (gameId) => ipcRenderer.invoke("subscriptions:details", gameId),
   unsubscribeFromMod: (input) => ipcRenderer.invoke("subscriptions:unsubscribe", input),
   subscribeToMod: (input) => ipcRenderer.invoke("catalog:subscribe", input),

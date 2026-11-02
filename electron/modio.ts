@@ -2,6 +2,7 @@ import type {
   AppConfig,
   CatalogGame,
   CatalogMod,
+  CatalogTagGroup,
   ModSortField,
   Platform,
   SortDirection,
@@ -170,14 +171,26 @@ export class ModioClient {
     limit: number,
     sortField: ModSortField,
     sortDirection: SortDirection,
+    tagFilters: string[],
   ): Promise<CatalogMod[]> {
     const data = await this.getData(`games/${encodeURIComponent(gameId)}/mods`, {
       _limit: limit,
       _offset: offset,
       _sort: `${sortDirection === "desc" ? "-" : ""}${sortField}`,
       ...(query.trim() ? { _q: query.trim() } : {}),
+      ...(tagFilters.length ? { _tags: tagFilters.join(","), _tags_mode: "AND" } : {}),
     });
     return data.map(parseMod).filter((mod): mod is CatalogMod => mod !== null);
+  }
+
+  async getGameTagGroups(gameId: string): Promise<CatalogTagGroup[]> {
+    const data = await this.getData(`games/${encodeURIComponent(gameId)}/tags`, { _limit: pageSize });
+    return data.flatMap((entry) => {
+      const name = stringValue(entry.name);
+      if (!name || !Array.isArray(entry.tags)) return [];
+      const tags = entry.tags.filter((tag): tag is string => typeof tag === "string" && tag.length > 0);
+      return tags.length ? [{ name, tags }] : [];
+    });
   }
 
   async subscribe(gameId: string, modId: string): Promise<void> {

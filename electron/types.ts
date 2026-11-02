@@ -72,6 +72,11 @@ export interface CatalogMod {
   isSubscribed: boolean;
 }
 
+export interface CatalogTagGroup {
+  name: string;
+  tags: string[];
+}
+
 export interface GameSettingsInput {
   gameId: string;
   targetPath?: string;
@@ -102,7 +107,9 @@ export interface ModioDesktopApi {
     limit: number;
     sortField: ModSortField;
     sortDirection: SortDirection;
+    tagFilters: string[];
   }): Promise<CatalogMod[]>;
+  getGameTagGroups(gameId: string): Promise<CatalogTagGroup[]>;
   getSubscribedModDetails(gameId: string): Promise<SubscribedModDetails[]>;
   unsubscribeFromMod(input: { gameId: string; modId: string }): Promise<PublicAppState>;
   subscribeToMod(input: { gameId: string; modId: string }): Promise<void>;

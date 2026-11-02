@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import type {
   CatalogGame,
   CatalogMod,
+  CatalogTagGroup,
   GameSettingsInput,
   AppUpdateState,
   ModSortField,
@@ -46,6 +47,10 @@ export default function App() {
   const [gameOffset, setGameOffset] = useState(0);
   const [selectedCatalogGame, setSelectedCatalogGame] = useState<CatalogGame | null>(null);
   const [catalogMods, setCatalogMods] = useState<CatalogMod[]>([]);
+  const [catalogTagGroups, setCatalogTagGroups] = useState<CatalogTagGroup[]>([]);
+  const [selectedGameVersion, setSelectedGameVersion] = useState("");
+  const [selectedModTagGroup, setSelectedModTagGroup] = useState("");
+  const [selectedModTag, setSelectedModTag] = useState("");
   const [hasMoreCatalogMods, setHasMoreCatalogMods] = useState(false);
   const [modQuery, setModQuery] = useState("");
   const [modOffset, setModOffset] = useState(0);
@@ -234,19 +239,32 @@ export default function App() {
     setSelectedCatalogGame(game);
     setModQuery("");
     setModOffset(0);
-    const results = await runAction(`Loading ${game.name} mods…`, () =>
-      window.modio.browseMods({
+    setSelectedGameVersion("");
+    setSelectedModTagGroup("");
+    setSelectedModTag("");
+    const results = await runAction(`Loading ${game.name} mods…`, async () => {
+      const mods = await window.modio.browseMods({
         gameId: game.id,
         query: "",
         offset: 0,
         limit: pageSize,
         sortField: modSortField,
         sortDirection: modSortDirection,
-      }));
+        tagFilters: [],
+      });
+      let tagGroups: CatalogTagGroup[] = [];
+      try {
+        tagGroups = await window.modio.getGameTagGroups(game.id);
+      } catch (error) {
+        announce(`Could not load mod filters: ${errorMessage(error)}`);
+      }
+      return { mods, tagGroups };
+    });
     if (results) {
-      setCatalogMods(results);
-      setModOffset(results.length);
-      setHasMoreCatalogMods(results.length === pageSize);
+      setCatalogTagGroups(results.tagGroups);
+      setCatalogMods(results.mods);
+      setModOffset(results.mods.length);
+      setHasMoreCatalogMods(results.mods.length === pageSize);
     }
   }
 
@@ -255,10 +273,14 @@ export default function App() {
     append = false,
     sortField = modSortField,
     sortDirection = modSortDirection,
+    gameVersion = selectedGameVersion,
+    tagGroup = selectedModTagGroup,
+    modTag = selectedModTag,
   ) {
     if (!selectedCatalogGame) return;
     const actualQuery = query.trim();
     const offset = append ? modOffset : 0;
+    const tagFilters = [gameVersion, tagGroup && modTag ? modTag : ""].filter(Boolean);
     const results = await runAction("Searching mods…", () =>
       window.modio.browseMods({
         gameId: selectedCatalogGame.id,
@@ -267,14 +289,19 @@ export default function App() {
         limit: pageSize,
         sortField,
         sortDirection,
+        tagFilters,
       }));
-    if (!results) return;
-    setModQuery(actualQuery);
-    setModSortField(sortField);
-    setModSortDirection(sortDirection);
-    setCatalogMods((current) => append ? [...current, ...results] : results);
-    setModOffset(offset + results.length);
-    setHasMoreCatalogMods(results.length === pageSize);
+    if (results) {
+      setModQuery(actualQuery);
+      setModSortField(sortField);
+      setModSortDirection(sortDirection);
+      setSelectedGameVersion(gameVersion);
+      setSelectedModTagGroup(tagGroup);
+      setSelectedModTag(modTag);
+      setCatalogMods((current) => append ? [...current, ...results] : results);
+      setModOffset(offset + results.length);
+      setHasMoreCatalogMods(results.length === pageSize);
+    }
   }
 
   async function subscribe(mod: CatalogMod) {
@@ -531,6 +558,20 @@ export default function App() {
               }}
               openCatalogGame={openCatalogGame}
               catalogMods={catalogMods}
+              catalogTagGroups={catalogTagGroups}
+              selectedGameVersion={selectedGameVersion}
+              selectedModTagGroup={selectedModTagGroup}
+              selectedModTag={selectedModTag}
+              setGameVersion={(version) => void searchMods(
+                modQuery, false, modSortField, modSortDirection, version, selectedModTagGroup, selectedModTag,
+              )}
+              setModTagGroup={(group) => void searchMods(
+                modQuery, false, modSortField, modSortDirection, selectedGameVersion, group, "",
+              )}
+              setModTag={(tag) => void searchMods(
+                modQuery, false, modSortField, modSortDirection, selectedGameVersion, selectedModTagGroup, tag,
+              )}
+              clearModFilters={() => void searchMods(modQuery, false, modSortField, modSortDirection, "", "", "")}
               modQuery={modQuery}
               searchMods={searchMods}
               modSortField={modSortField}
@@ -819,6 +860,14 @@ interface DiscoverPageProps {
   clearSelectedCatalogGame: () => void;
   openCatalogGame: (game: CatalogGame) => Promise<void>;
   catalogMods: CatalogMod[];
+  catalogTagGroups: CatalogTagGroup[];
+  selectedGameVersion: string;
+  selectedModTagGroup: string;
+  selectedModTag: string;
+  setGameVersion: (version: string) => void;
+  setModTagGroup: (group: string) => void;
+  setModTag: (tag: string) => void;
+  clearModFilters: () => void;
   modQuery: string;
   searchMods: (query?: string, append?: boolean) => Promise<void>;
   modSortField: ModSortField;
@@ -835,6 +884,9 @@ interface DiscoverPageProps {
 function DiscoverPage(props: DiscoverPageProps) {
   const [gameInput, setGameInput] = useState(props.gameQuery);
   const [modInput, setModInput] = useState(props.modQuery);
+  const gameVersionGroup = props.catalogTagGroups.find((group) => group.name.toLocaleLowerCase().includes("version"));
+  const modTagGroups = props.catalogTagGroups.filter((group) => group !== gameVersionGroup);
+  const selectedTagGroup = modTagGroups.find((group) => group.name === props.selectedModTagGroup);
   useEffect(() => setGameInput(props.gameQuery), [props.gameQuery]);
   useEffect(() => setModInput(props.modQuery), [props.modQuery]);
 
@@ -883,6 +935,41 @@ function DiscoverPage(props: DiscoverPageProps) {
             <button className="primary-button" disabled={props.busy} onClick={() => void props.searchMods(modInput, false)}>Search mods <span>↗</span></button>
           </div>
           <div className="mod-sort-controls">
+            {gameVersionGroup && (
+              <label>
+                <span>Game version</span>
+                <select value={props.selectedGameVersion} disabled={props.busy}
+                        onChange={(event) => props.setGameVersion(event.target.value)}>
+                  <option value="">All versions</option>
+                  {gameVersionGroup.tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+                </select>
+              </label>
+            )}
+            {modTagGroups.length > 0 && (
+              <>
+                <label>
+                  <span>Tag group</span>
+                  <select value={props.selectedModTagGroup} disabled={props.busy}
+                          onChange={(event) => props.setModTagGroup(event.target.value)}>
+                    <option value="">All tag groups</option>
+                    {modTagGroups.map((group) => <option key={group.name} value={group.name}>{group.name}</option>)}
+                  </select>
+                </label>
+                {selectedTagGroup && (
+                  <label>
+                    <span>{selectedTagGroup.name}</span>
+                    <select value={props.selectedModTag} disabled={props.busy}
+                            onChange={(event) => props.setModTag(event.target.value)}>
+                      <option value="">All</option>
+                      {selectedTagGroup.tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+                    </select>
+                  </label>
+                )}
+              </>
+            )}
+            {!gameVersionGroup && (
+              <span className="filter-empty-note">No game-version tags are configured for this game.</span>
+            )}
             <label>
               <span>Sort by</span>
               <select value={props.modSortField} disabled={props.busy} onChange={(event) =>
@@ -907,6 +994,9 @@ function DiscoverPage(props: DiscoverPageProps) {
                 <option value="asc">Ascending</option>
               </select>
             </label>
+            <button type="button" className="clear-filters-button" disabled={props.busy
+              || (!props.selectedGameVersion && !props.selectedModTag)}
+                    onClick={props.clearModFilters}>Clear tag filters</button>
           </div>
           <div className="section-title-row"><div><h2>Community mods</h2><span>Tap a mod for details · subscribe to add it to your library</span></div><span className="result-count">{props.catalogMods.length} shown</span></div>
           {props.catalogMods.length ? (

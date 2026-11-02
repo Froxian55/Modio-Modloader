@@ -223,6 +223,7 @@ function registerHandlers(): void {
     limit: number;
     sortField: string;
     sortDirection: string;
+    tagFilters: unknown;
   }) => {
     const gameId = requireString(input?.gameId, "Game ID");
     const mods = await new ModioClient(config).getMods(
@@ -232,9 +233,14 @@ function registerHandlers(): void {
       clampLimit(input?.limit),
       requireModSortField(input?.sortField),
       requireSortDirection(input?.sortDirection),
+      requireTagFilters(input?.tagFilters),
     );
     const subscribed = new Set(subscriptions.map((mod) => `${mod.gameId}:${mod.modId}`));
     return mods.map((mod) => ({ ...mod, isSubscribed: subscribed.has(`${mod.gameId}:${mod.id}`) }));
+  });
+
+  ipcMain.handle("catalog:tag-groups", async (_event, rawGameId: unknown) => {
+    return new ModioClient(config).getGameTagGroups(requireString(rawGameId, "Game ID"));
   });
 
   ipcMain.handle("subscriptions:details", async (_event, rawGameId: unknown) => {
@@ -433,6 +439,14 @@ function requireModSortField(value: unknown): ModSortField {
 function requireSortDirection(value: unknown): SortDirection {
   if (value === "asc" || value === "desc") return value;
   throw new Error("Choose ascending or descending sort order.");
+}
+
+function requireTagFilters(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 2
+    || value.some((tag) => typeof tag !== "string" || !tag.trim() || tag.length > 100)) {
+    throw new Error("Choose valid mod tags.");
+  }
+  return value.map((tag: string) => tag.trim());
 }
 
 function getErrorMessage(error: unknown): string {
