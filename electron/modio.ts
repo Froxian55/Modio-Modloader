@@ -3,6 +3,7 @@ import type {
   CatalogGame,
   CatalogMod,
   CatalogTagGroup,
+  ModDependency,
   ModSortField,
   Platform,
   SortDirection,
@@ -128,6 +129,34 @@ export class ModioClient {
       for (const mod of result.filter((item) => item.gameId === id)) mod.gameName = game.name;
     }
     return result.sort((a, b) => a.gameName.localeCompare(b.gameName) || a.modName.localeCompare(b.modName));
+  }
+
+  async getModDependencies(mod: SubscribedMod): Promise<ModDependency[]> {
+    const cacheKey = `${this.config.userId}:dependencies:${mod.gameId}:${mod.modId}`;
+    return getCachedValue(cacheKey, metadataCacheDurationMs, async () => {
+      const dependencies: Record<string, unknown>[] = [];
+      for (let offset = 0; ; offset += pageSize) {
+        const page = await this.getData(
+          `games/${encodeURIComponent(mod.gameId)}/mods/${encodeURIComponent(mod.modId)}/dependencies`,
+          { recursive: "true", _limit: pageSize, _offset: offset },
+        );
+        dependencies.push(...page);
+        if (page.length < pageSize) break;
+      }
+      const unique = new Map<string, ModDependency>();
+      for (const dependency of dependencies) {
+        const modId = stringValue(dependency.mod_id) || stringValue(dependency.id);
+        if (!modId || modId === mod.modId) continue;
+        const parsed = {
+          modId,
+          modName: stringValue(dependency.name) || `Mod ${modId}`,
+          depth: numberValue(dependency.dependency_depth),
+        };
+        const current = unique.get(modId);
+        if (!current || parsed.depth > current.depth) unique.set(modId, parsed);
+      }
+      return [...unique.values()].sort((left, right) => right.depth - left.depth);
+    });
   }
 
   async getSubscribedModDetails(gameId: string, mods: SubscribedMod[]): Promise<SubscribedModDetails[]> {

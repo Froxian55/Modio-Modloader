@@ -19,7 +19,37 @@ export async function syncMods(
   config: AppConfig,
   report: ProgressReporter,
 ): Promise<void> {
+  const client = new ModioClient(config);
+  const plan: SubscribedMod[] = [];
+  const planned = new Set<string>();
+
   for (const mod of mods) {
+    report(`Checking required mods: ${mod.gameName} / ${mod.modName}`);
+    try {
+      const dependencies = await client.getModDependencies(mod);
+      for (const dependency of dependencies) {
+        const key = `${mod.gameId}:${dependency.modId}`;
+        if (planned.has(key)) continue;
+        planned.add(key);
+        plan.push({
+          gameId: mod.gameId,
+          gameName: mod.gameName,
+          modId: dependency.modId,
+          modName: dependency.modName,
+        });
+        report(`Added required mod: ${dependency.modName}`);
+      }
+      const key = `${mod.gameId}:${mod.modId}`;
+      if (!planned.has(key)) {
+        planned.add(key);
+        plan.push(mod);
+      }
+    } catch (error) {
+      report(`Skipped ${mod.modName}: could not check its required mods: ${getErrorMessage(error)}`);
+    }
+  }
+
+  for (const mod of plan) {
     const mapping = config.games[mod.gameId];
     if (!mapping?.targetPath) {
       report(`Skipped ${mod.modName}: choose an install folder first.`);
@@ -29,7 +59,6 @@ export async function syncMods(
     const staging = await mkdtemp(path.join(os.tmpdir(), "modio-manager-"));
     try {
       report(`Downloading (${mapping.targetPlatform}): ${mod.gameName} / ${mod.modName}`);
-      const client = new ModioClient(config);
       const downloadUrl = await client.getDownloadUrl(mod, mapping.targetPlatform);
       const url = new URL(downloadUrl);
       if (url.protocol !== "https:") throw new Error("The mod download URL must use HTTPS.");

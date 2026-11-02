@@ -46,6 +46,12 @@ export interface SubscribedMod {
   modName: string;
 }
 
+export interface ModDependency {
+  modId: string;
+  modName: string;
+  depth: number;
+}
+
 export interface SubscribedModDetails {
   modId: string;
   modName: string;
