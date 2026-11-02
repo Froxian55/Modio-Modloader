@@ -10,6 +10,48 @@ import type {
 } from "./types";
 
 const pageSize = 100;
+const minimumRequestIntervalMs = 250;
+const maxRateLimitRetries = 4;
+
+let requestQueue: Promise<void> = Promise.resolve();
+let nextRequestAt = 0;
+let rateLimitUntil = 0;
+
+function enqueueModioRequest(request: () => Promise<Response>): Promise<Response> {
+  const result = requestQueue.then(async () => {
+    for (let attempt = 0; ; attempt++) {
+      const waitUntil = Math.max(nextRequestAt, rateLimitUntil);
+      const waitMs = waitUntil - Date.now();
+      if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+
+      const response = await request();
+      nextRequestAt = Date.now() + minimumRequestIntervalMs;
+      if (response.status !== 429 || attempt >= maxRateLimitRetries) return response;
+
+      const retryDelay = getRateLimitRetryDelay(response, attempt);
+      rateLimitUntil = Math.max(rateLimitUntil, Date.now() + retryDelay);
+    }
+  });
+  requestQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+function getRateLimitRetryDelay(response: Response, attempt: number): number {
+  const retryAfter = response.headers.get("Retry-After");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+    const retryAt = Date.parse(retryAfter);
+    if (Number.isFinite(retryAt)) return Math.max(0, retryAt - Date.now());
+  }
+
+  const reset = Number(response.headers.get("X-RateLimit-Reset"));
+  if (Number.isFinite(reset) && reset > 0) {
+    return Math.max(0, reset * 1000 - Date.now());
+  }
+
+  return Math.min(1000 * 2 ** attempt, 30_000);
+}
 
 export class ModioClient {
   private readonly root: string;
@@ -202,12 +244,12 @@ export class ModioClient {
     if (options.platform) headers["X-Modio-Platform"] = options.platform;
     if (options.body) headers["Content-Type"] = "application/x-www-form-urlencoded";
 
-    const response = await fetch(url, {
+    const response = await enqueueModioRequest(() => fetch(url, {
       method: options.method || "GET",
       headers,
       body: options.body?.toString(),
       signal: AbortSignal.timeout(600_000),
-    });
+    }));
     if (!response.ok) {
       const details = (await response.text()).slice(0, 500);
       throw new Error(`mod.io API ${response.status} ${response.statusText}: ${details}`);

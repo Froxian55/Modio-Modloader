@@ -1,6 +1,6 @@
 {
   "name": "modio-manager-desktop",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "private": true,
   "description": "A desktop mod.io library and discovery browser",
   "main": "dist/electron/main.js",
