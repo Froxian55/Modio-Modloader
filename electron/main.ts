@@ -351,6 +351,31 @@ function registerHandlers(): void {
     }
   });
 
+  ipcMain.handle("sync:mods", async (_event, input: { gameId: string; modIds: unknown }) => {
+    requireSignedIn();
+    const gameId = requireString(input?.gameId, "Game ID");
+    if (!Array.isArray(input?.modIds) || input.modIds.length === 0 || input.modIds.length > 500) {
+      throw new Error("Choose between 1 and 500 mods to install.");
+    }
+    if (syncRunning) throw new Error("A sync operation is already running.");
+    const modIds = new Set(input.modIds.map((id) => requireString(id, "Mod ID")));
+    const selected = subscriptions.filter((mod) => mod.gameId === gameId && modIds.has(mod.modId));
+    if (selected.length !== modIds.size) {
+      throw new Error("Some selected mods are not in your subscriptions. Refresh your library and try again.");
+    }
+    if (!config.games[gameId]?.targetPath) {
+      const game = getPublicState().games.find((item) => item.id === gameId);
+      throw new Error(`Choose an install folder for ${game?.name || "this game"} before installing mods.`);
+    }
+
+    syncRunning = true;
+    try {
+      await syncMods(selected, config, (message) => mainWindow?.webContents.send("sync:progress", message));
+    } finally {
+      syncRunning = false;
+    }
+  });
+
   ipcMain.on("window:action", (event, action: unknown) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window) return;

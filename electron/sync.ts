@@ -22,6 +22,7 @@ export async function syncMods(
   const client = new ModioClient(config);
   const plan: SubscribedMod[] = [];
   const planned = new Set<string>();
+  const failures: string[] = [];
 
   for (const mod of mods) {
     report(`Checking required mods: ${mod.gameName} / ${mod.modName}`);
@@ -45,14 +46,18 @@ export async function syncMods(
         plan.push(mod);
       }
     } catch (error) {
-      report(`Skipped ${mod.modName}: could not check its required mods: ${getErrorMessage(error)}`);
+      const message = `Skipped ${mod.modName}: could not check its required mods: ${getErrorMessage(error)}`;
+      failures.push(message);
+      report(message);
     }
   }
 
   for (const mod of plan) {
     const mapping = config.games[mod.gameId];
     if (!mapping?.targetPath) {
-      report(`Skipped ${mod.modName}: choose an install folder first.`);
+      const message = `Skipped ${mod.modName}: choose an install folder first.`;
+      failures.push(message);
+      report(message);
       continue;
     }
 
@@ -90,10 +95,15 @@ export async function syncMods(
       }
       report(`Completed: ${mod.gameName} / ${mod.modName}`);
     } catch (error) {
-      report(`Failed: ${mod.gameName} / ${mod.modName}: ${getErrorMessage(error)}`);
+      const message = `Failed: ${mod.gameName} / ${mod.modName}: ${getErrorMessage(error)}`;
+      failures.push(message);
+      report(message);
     } finally {
       await rm(staging, { recursive: true, force: true });
     }
+  }
+  if (failures.length) {
+    throw new Error(`${failures.length} mod(s) could not be installed. ${failures.slice(0, 3).join(" ")}`);
   }
 }
 

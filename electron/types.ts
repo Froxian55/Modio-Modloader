@@ -130,6 +130,7 @@ export interface ModioDesktopApi {
   saveGameSettings(input: GameSettingsInput): Promise<PublicAppState>;
   chooseGameFolder(gameId: string): Promise<PublicAppState | null>;
   syncGames(gameIds: string[]): Promise<void>;
+  syncMods(input: { gameId: string; modIds: string[] }): Promise<void>;
   getUpdateState(): Promise<AppUpdateState>;
   downloadUpdate(): Promise<void>;
   installUpdate(): void;

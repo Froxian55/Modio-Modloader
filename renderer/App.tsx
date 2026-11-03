@@ -349,7 +349,16 @@ export default function App() {
         item.gameId === mod.gameId ? { ...item, isSubscribed: followedIds.has(item.id) } : item));
       setModDetailsByGame({});
       setPendingSubscription(null);
-      announce(`Followed ${mod.name} and its required mods. Sync the game to install them.`);
+      const installed = await runAction(`Installing ${mod.name} and its requirements…`, async () => {
+        setSyncing(true);
+        try {
+          await window.modio.syncMods({ gameId: mod.gameId, modIds });
+          return true;
+        } finally {
+          setSyncing(false);
+        }
+      });
+      if (installed) announce(`Installed ${mod.name} and its required mods.`);
     }
   }
 

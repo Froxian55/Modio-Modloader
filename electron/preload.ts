@@ -17,6 +17,7 @@ const api: ModioDesktopApi = {
   saveGameSettings: (input: GameSettingsInput) => ipcRenderer.invoke("games:save-settings", input),
   chooseGameFolder: (gameId) => ipcRenderer.invoke("games:choose-folder", gameId),
   syncGames: (gameIds) => ipcRenderer.invoke("sync:games", gameIds),
+  syncMods: (input) => ipcRenderer.invoke("sync:mods", input),
   getUpdateState: () => ipcRenderer.invoke("updates:get-state"),
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),
   installUpdate: () => ipcRenderer.send("updates:install"),
