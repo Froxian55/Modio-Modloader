@@ -224,6 +224,7 @@ function registerHandlers(): void {
     sortField: string;
     sortDirection: string;
     tagFilters: unknown;
+    platformFilter: unknown;
   }) => {
     const gameId = requireString(input?.gameId, "Game ID");
     const mods = await new ModioClient(config).getMods(
@@ -234,6 +235,7 @@ function registerHandlers(): void {
       requireModSortField(input?.sortField),
       requireSortDirection(input?.sortDirection),
       requireTagFilters(input?.tagFilters),
+      requirePlatformFilter(input?.platformFilter),
     );
     const subscribed = new Set(subscriptions.map((mod) => `${mod.gameId}:${mod.modId}`));
     return mods.map((mod) => ({ ...mod, isSubscribed: subscribed.has(`${mod.gameId}:${mod.id}`) }));
@@ -447,6 +449,14 @@ function requireTagFilters(value: unknown): string[] {
     throw new Error("Choose valid mod tags.");
   }
   return value.map((tag: string) => tag.trim());
+}
+
+function requirePlatformFilter(value: unknown): Platform | "" {
+  if (value === "" || value === undefined) return "";
+  if (value !== "windows" && value !== "android") {
+    throw new Error("Choose Windows or Android as the platform filter.");
+  }
+  return value;
 }
 
 function getErrorMessage(error: unknown): string {

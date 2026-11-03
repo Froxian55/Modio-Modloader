@@ -51,6 +51,7 @@ export default function App() {
   const [selectedGameVersion, setSelectedGameVersion] = useState("");
   const [selectedModTagGroup, setSelectedModTagGroup] = useState("");
   const [selectedModTag, setSelectedModTag] = useState("");
+  const [selectedPlatformFilter, setSelectedPlatformFilter] = useState<Platform | "">("");
   const [hasMoreCatalogMods, setHasMoreCatalogMods] = useState(false);
   const [modQuery, setModQuery] = useState("");
   const [modOffset, setModOffset] = useState(0);
@@ -242,6 +243,7 @@ export default function App() {
     setSelectedGameVersion("");
     setSelectedModTagGroup("");
     setSelectedModTag("");
+    setSelectedPlatformFilter("");
     const results = await runAction(`Loading ${game.name} mods…`, async () => {
       const mods = await window.modio.browseMods({
         gameId: game.id,
@@ -251,6 +253,7 @@ export default function App() {
         sortField: modSortField,
         sortDirection: modSortDirection,
         tagFilters: [],
+        platformFilter: "",
       });
       let tagGroups: CatalogTagGroup[] = [];
       try {
@@ -276,6 +279,7 @@ export default function App() {
     gameVersion = selectedGameVersion,
     tagGroup = selectedModTagGroup,
     modTag = selectedModTag,
+    platformFilter = selectedPlatformFilter,
   ) {
     if (!selectedCatalogGame) return;
     const actualQuery = query.trim();
@@ -290,6 +294,7 @@ export default function App() {
         sortField,
         sortDirection,
         tagFilters,
+        platformFilter,
       }));
     if (results) {
       setModQuery(actualQuery);
@@ -298,6 +303,7 @@ export default function App() {
       setSelectedGameVersion(gameVersion);
       setSelectedModTagGroup(tagGroup);
       setSelectedModTag(modTag);
+      setSelectedPlatformFilter(platformFilter);
       setCatalogMods((current) => append ? [...current, ...results] : results);
       setModOffset(offset + results.length);
       setHasMoreCatalogMods(results.length === pageSize);
@@ -562,6 +568,7 @@ export default function App() {
               selectedGameVersion={selectedGameVersion}
               selectedModTagGroup={selectedModTagGroup}
               selectedModTag={selectedModTag}
+              selectedPlatformFilter={selectedPlatformFilter}
               setGameVersion={(version) => void searchMods(
                 modQuery, false, modSortField, modSortDirection, version, selectedModTagGroup, selectedModTag,
               )}
@@ -571,7 +578,10 @@ export default function App() {
               setModTag={(tag) => void searchMods(
                 modQuery, false, modSortField, modSortDirection, selectedGameVersion, selectedModTagGroup, tag,
               )}
-              clearModFilters={() => void searchMods(modQuery, false, modSortField, modSortDirection, "", "", "")}
+              setPlatformFilter={(platform) => void searchMods(
+                modQuery, false, modSortField, modSortDirection, selectedGameVersion, selectedModTagGroup, selectedModTag, platform,
+              )}
+              clearModFilters={() => void searchMods(modQuery, false, modSortField, modSortDirection, "", "", "", "")}
               modQuery={modQuery}
               searchMods={searchMods}
               modSortField={modSortField}
@@ -864,9 +874,11 @@ interface DiscoverPageProps {
   selectedGameVersion: string;
   selectedModTagGroup: string;
   selectedModTag: string;
+  selectedPlatformFilter: Platform | "";
   setGameVersion: (version: string) => void;
   setModTagGroup: (group: string) => void;
   setModTag: (tag: string) => void;
+  setPlatformFilter: (platform: Platform | "") => void;
   clearModFilters: () => void;
   modQuery: string;
   searchMods: (query?: string, append?: boolean) => Promise<void>;
@@ -935,6 +947,15 @@ function DiscoverPage(props: DiscoverPageProps) {
             <button className="primary-button" disabled={props.busy} onClick={() => void props.searchMods(modInput, false)}>Search mods <span>↗</span></button>
           </div>
           <div className="mod-sort-controls">
+            <label>
+              <span>Platform</span>
+              <select value={props.selectedPlatformFilter} disabled={props.busy}
+                      onChange={(event) => props.setPlatformFilter(event.target.value as Platform | "")}>
+                <option value="">All platforms</option>
+                <option value="windows">Windows</option>
+                <option value="android">Android</option>
+              </select>
+            </label>
             {gameVersionGroup && (
               <label>
                 <span>Game version</span>
@@ -995,8 +1016,8 @@ function DiscoverPage(props: DiscoverPageProps) {
               </select>
             </label>
             <button type="button" className="clear-filters-button" disabled={props.busy
-              || (!props.selectedGameVersion && !props.selectedModTag)}
-                    onClick={props.clearModFilters}>Clear tag filters</button>
+              || (!props.selectedGameVersion && !props.selectedModTag && !props.selectedPlatformFilter)}
+                    onClick={props.clearModFilters}>Clear filters</button>
           </div>
           <div className="section-title-row"><div><h2>Community mods</h2><span>Tap a mod for details · subscribe to add it to your library</span></div><span className="result-count">{props.catalogMods.length} shown</span></div>
           {props.catalogMods.length ? (

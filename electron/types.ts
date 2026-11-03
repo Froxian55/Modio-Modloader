@@ -114,6 +114,7 @@ export interface ModioDesktopApi {
     sortField: ModSortField;
     sortDirection: SortDirection;
     tagFilters: string[];
+    platformFilter: Platform | "";
   }): Promise<CatalogMod[]>;
   getGameTagGroups(gameId: string): Promise<CatalogTagGroup[]>;
   getSubscribedModDetails(gameId: string): Promise<SubscribedModDetails[]>;

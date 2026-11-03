@@ -241,10 +241,11 @@ export class ModioClient {
     sortField: ModSortField,
     sortDirection: SortDirection,
     tagFilters: string[],
+    platformFilter: Platform | "",
   ): Promise<CatalogMod[]> {
     const actualQuery = query.trim();
     const actualTags = [...tagFilters].sort();
-    const cacheKey = `${this.config.userId}:mods:${gameId}:${actualQuery}:${offset}:${limit}:${sortField}:${sortDirection}:${actualTags.join(",")}`;
+    const cacheKey = `${this.config.userId}:mods:${gameId}:${actualQuery}:${offset}:${limit}:${sortField}:${sortDirection}:${platformFilter}:${actualTags.join(",")}`;
     return getCachedValue(cacheKey, catalogCacheDurationMs, async () => {
       const data = await this.getData(`games/${encodeURIComponent(gameId)}/mods`, {
         _limit: limit,
@@ -252,7 +253,7 @@ export class ModioClient {
         _sort: `${sortDirection === "desc" ? "-" : ""}${sortField}`,
         ...(actualQuery ? { _q: actualQuery } : {}),
         ...(actualTags.length ? { tags: actualTags.join(",") } : {}),
-      });
+      }, platformFilter || undefined);
       return data.map(parseMod).filter((mod): mod is CatalogMod => mod !== null);
     });
   }
