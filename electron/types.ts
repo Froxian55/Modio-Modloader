@@ -52,6 +52,12 @@ export interface ModDependency {
   depth: number;
 }
 
+export interface ModDependencyRequest {
+  gameId: string;
+  modId: string;
+  modName: string;
+}
+
 export interface SubscribedModDetails {
   modId: string;
   modName: string;
@@ -117,9 +123,10 @@ export interface ModioDesktopApi {
     platformFilter: Platform | "";
   }): Promise<CatalogMod[]>;
   getGameTagGroups(gameId: string): Promise<CatalogTagGroup[]>;
+  getModDependencies(input: ModDependencyRequest): Promise<ModDependency[]>;
   getSubscribedModDetails(gameId: string): Promise<SubscribedModDetails[]>;
   unsubscribeFromMod(input: { gameId: string; modId: string }): Promise<PublicAppState>;
-  subscribeToMod(input: { gameId: string; modId: string }): Promise<void>;
+  subscribeMods(input: { gameId: string; modIds: string[] }): Promise<PublicAppState>;
   saveGameSettings(input: GameSettingsInput): Promise<PublicAppState>;
   chooseGameFolder(gameId: string): Promise<PublicAppState | null>;
   syncGames(gameIds: string[]): Promise<void>;

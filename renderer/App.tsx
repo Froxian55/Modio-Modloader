@@ -6,6 +6,7 @@ import type {
   CatalogTagGroup,
   GameSettingsInput,
   AppUpdateState,
+  ModDependency,
   ModSortField,
   Platform,
   PublicAppState,
@@ -58,6 +59,10 @@ export default function App() {
   const [modSortField, setModSortField] = useState<ModSortField>("popular");
   const [modSortDirection, setModSortDirection] = useState<SortDirection>("desc");
   const [selectedMod, setSelectedMod] = useState<CatalogMod | null>(null);
+  const [pendingSubscription, setPendingSubscription] = useState<{
+    mod: CatalogMod;
+    dependencies: ModDependency[];
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("");
   const [toast, setToast] = useState("");
@@ -311,15 +316,41 @@ export default function App() {
   }
 
   async function subscribe(mod: CatalogMod) {
-    await runAction(`Subscribing to ${mod.name}…`, async () => {
-      await window.modio.subscribeToMod({ gameId: mod.gameId, modId: mod.id });
-      setCatalogMods((mods) => mods.map((item) =>
-        item.id === mod.id ? { ...item, isSubscribed: true } : item));
-      const next = await window.modio.refreshSubscriptions();
-      setModDetailsByGame({});
+    const dependencies = await runAction(`Checking requirements for ${mod.name}…`, () =>
+      window.modio.getModDependencies({ gameId: mod.gameId, modId: mod.id, modName: mod.name }));
+    if (dependencies) setPendingSubscription({ mod, dependencies });
+  }
+
+  async function confirmSubscription() {
+    if (!pendingSubscription) return;
+    const { mod, dependencies } = pendingSubscription;
+    const modIds = [...new Set([...dependencies.map((dependency) => dependency.modId), mod.id])];
+    const next = await runAction(`Following ${mod.name} and its requirements…`, () =>
+      window.modio.subscribeMods({ gameId: mod.gameId, modIds }));
+    if (!next) {
+      const refreshed = await runAction("Refreshing your subscription status…", () => window.modio.refreshSubscriptions());
+      if (refreshed) {
+        setState(refreshed);
+        const followedIds = new Set(refreshed.subscriptions
+          .filter((item) => item.gameId === mod.gameId)
+          .map((item) => item.modId));
+        setCatalogMods((mods) => mods.map((item) =>
+          item.gameId === mod.gameId ? { ...item, isSubscribed: followedIds.has(item.id) } : item));
+        setModDetailsByGame({});
+      }
+      return;
+    }
+    if (next) {
       setState(next);
-      announce(`Subscribed to ${mod.name}.`);
-    });
+      const followedIds = new Set(next.subscriptions
+        .filter((item) => item.gameId === mod.gameId)
+        .map((item) => item.modId));
+      setCatalogMods((mods) => mods.map((item) =>
+        item.gameId === mod.gameId ? { ...item, isSubscribed: followedIds.has(item.id) } : item));
+      setModDetailsByGame({});
+      setPendingSubscription(null);
+      announce(`Followed ${mod.name} and its required mods. Sync the game to install them.`);
+    }
   }
 
   async function unsubscribe(modId: string) {
@@ -601,6 +632,16 @@ export default function App() {
       {busy && <div className="busy-indicator"><span className="spinner"/>{busyLabel || "Working…"}</div>}
       {toast && !busy && <div className="toast"><span className="toast-dot"/> {toast}</div>}
       {selectedMod && <ModDetails mod={selectedMod} gameName={selectedCatalogGame?.name || "mod.io game"} onClose={() => setSelectedMod(null)}/>}
+      {pendingSubscription && (
+        <SubscriptionRequirementsDialog
+          mod={pendingSubscription.mod}
+          dependencies={pendingSubscription.dependencies}
+          subscriptions={state.subscriptions.filter((item) => item.gameId === pendingSubscription.mod.gameId)}
+          busy={busy}
+          onCancel={() => setPendingSubscription(null)}
+          onConfirm={() => void confirmSubscription()}
+        />
+      )}
       {(appUpdate.status === "available" || appUpdate.status === "downloading" || appUpdate.status === "downloaded"
         || (appUpdate.status === "error" && Boolean(appUpdate.version))) && !updateDismissed && (
         <UpdateDialog
@@ -1061,6 +1102,74 @@ function ModDetails({ mod, gameName, onClose }: { mod: CatalogMod; gameName: str
         <h2>{mod.name}</h2>
         <p>{mod.summary || "No description was provided for this mod."}</p>
         <div className="modal-stats"><StatCard label="DOWNLOADS" value={mod.downloads} icon="↓" tone="blue"/><StatCard label="SUBSCRIBERS" value={mod.subscribers} icon="◈" tone="mint"/></div>
+      </section>
+    </div>
+  );
+}
+
+function SubscriptionRequirementsDialog({ mod, dependencies, subscriptions, busy, onCancel, onConfirm }: {
+  mod: CatalogMod;
+  dependencies: ModDependency[];
+  subscriptions: PublicAppState["subscriptions"];
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const followedIds = new Set(subscriptions.map((item) => item.modId));
+  const newDependencyCount = dependencies.filter((dependency) => !followedIds.has(dependency.modId)).length;
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onCancel();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [busy, onCancel]);
+
+  return (
+    <div className="modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !busy) onCancel();
+    }}>
+      <section className="mod-details-modal requirements-dialog" role="dialog" aria-modal="true" aria-labelledby="requirements-title">
+        <button type="button" className="modal-close" aria-label="Close" disabled={busy} onClick={onCancel}>×</button>
+        <span className="eyebrow accent">MOD REQUIREMENTS</span>
+        <h2 id="requirements-title">Before you follow this mod</h2>
+        <p>
+          {dependencies.length
+            ? "This mod needs the following mods. Nested requirements are included too."
+            : "No additional mod requirements were found."}
+        </p>
+        {dependencies.length > 0 && (
+          <div className="dependency-list">
+            {dependencies.map((dependency) => {
+              const isFollowed = followedIds.has(dependency.modId);
+              return (
+                <div className="dependency-row" key={dependency.modId} style={{ marginLeft: `${Math.min(Math.max(dependency.depth - 1, 0), 5) * 14}px` }}>
+                  <span className="dependency-marker">{dependency.depth > 1 ? "↳" : "•"}</span>
+                  <span className="dependency-name" title={dependency.modName}>{dependency.modName}</span>
+                  <span className={`dependency-status ${isFollowed ? "followed" : ""}`}>
+                    {isFollowed ? "Already followed" : dependency.depth > 1 ? "Nested requirement" : "Required"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="required-parent">
+          <span className="dependency-marker">★</span>
+          <span className="dependency-name" title={mod.name}>{mod.name}</span>
+          <span className="dependency-status">Selected mod</span>
+        </div>
+        <p className="requirements-note">
+          Following adds these mods to your library; use Sync to download and install them.
+          {newDependencyCount === 0 && dependencies.length > 0 ? " You already follow every requirement." : ""}
+        </p>
+        <div className="update-actions">
+          <button type="button" className="text-button" disabled={busy} onClick={onCancel}>Cancel</button>
+          <button type="button" className="primary-button" disabled={busy} onClick={onConfirm}>
+            {busy ? "Following mods…" : `Follow mod${newDependencyCount ? ` + ${newDependencyCount} requirement${newDependencyCount === 1 ? "" : "s"}` : ""}`}
+          </button>
+        </div>
       </section>
     </div>
   );

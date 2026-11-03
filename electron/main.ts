@@ -11,6 +11,7 @@ import type {
   GameMapping,
   GameSettingsInput,
   ModSortField,
+  ModDependencyRequest,
   Platform,
   PublicAppState,
   SortDirection,
@@ -245,6 +246,46 @@ function registerHandlers(): void {
     return new ModioClient(config).getGameTagGroups(requireString(rawGameId, "Game ID"));
   });
 
+  ipcMain.handle("catalog:dependencies", async (_event, input: ModDependencyRequest) => {
+    requireSignedIn();
+    const gameId = requireString(input?.gameId, "Game ID");
+    const modId = requireString(input?.modId, "Mod ID");
+    const modName = requireString(input?.modName, "Mod name");
+    return new ModioClient(config).getModDependencies({ gameId, modId, modName, gameName: "" });
+  });
+
+  ipcMain.handle("catalog:subscribe-many", async (_event, input: { gameId: string; modIds: unknown }) => {
+    requireSignedIn();
+    const gameId = requireString(input?.gameId, "Game ID");
+    if (!Array.isArray(input?.modIds) || input.modIds.length === 0 || input.modIds.length > 500) {
+      throw new Error("Choose between 1 and 500 mods to follow.");
+    }
+    const modIds = [...new Set(input.modIds.map((id) => requireString(id, "Mod ID")))];
+    const client = new ModioClient(config);
+    const followedIds = new Set(subscriptions
+      .filter((mod) => mod.gameId === gameId)
+      .map((mod) => mod.modId));
+
+    try {
+      for (const modId of modIds) {
+        if (!followedIds.has(modId)) await client.subscribe(gameId, modId);
+      }
+    } catch (error) {
+      const originalError = getErrorMessage(error);
+      try {
+        subscriptions = await client.getSubscriptions();
+        await hydrateGameArtwork();
+      } catch (refreshError) {
+        throw new Error(`Could not follow all required mods: ${originalError}. Refresh also failed: ${getErrorMessage(refreshError)}`);
+      }
+      throw error;
+    }
+
+    subscriptions = await client.getSubscriptions();
+    await hydrateGameArtwork();
+    return getPublicState();
+  });
+
   ipcMain.handle("subscriptions:details", async (_event, rawGameId: unknown) => {
     requireSignedIn();
     const gameId = requireString(rawGameId, "Game ID");
@@ -265,16 +306,6 @@ function registerHandlers(): void {
     subscriptions = await new ModioClient(config).getSubscriptions();
     await hydrateGameArtwork();
     return getPublicState(`Unsubscribed from ${modId}.`);
-  });
-
-  ipcMain.handle("catalog:subscribe", async (_event, input: { gameId: string; modId: string }) => {
-    requireSignedIn();
-    await new ModioClient(config).subscribe(
-      requireString(input?.gameId, "Game ID"),
-      requireString(input?.modId, "Mod ID"),
-    );
-    subscriptions = await new ModioClient(config).getSubscriptions();
-    await hydrateGameArtwork();
   });
 
   ipcMain.handle("games:save-settings", async (_event, input: GameSettingsInput) => {

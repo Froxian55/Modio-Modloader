@@ -297,6 +297,16 @@ button:disabled { cursor: not-allowed !important; opacity: .48; }
 .modal-cover { position: relative; height: 204px; overflow: hidden; margin-bottom: 17px; border-radius: 10px; background: #1a2940; }
 .mod-details-modal h2 { margin: 7px 0 8px; font: 600 21px "Space Grotesk", sans-serif; }
 .mod-details-modal > p { margin: 0; color: #a1afc2; font-size: 11px; line-height: 1.7; white-space: pre-wrap; }
+.requirements-dialog { width: min(560px, 100%); }
+.dependency-list { display: flex; flex-direction: column; gap: 5px; max-height: 260px; overflow-y: auto; margin-top: 15px; padding: 8px; border: 1px solid #293a52; border-radius: 9px; background: #0e1727; }
+.dependency-row, .required-parent { display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 5px 8px; border-radius: 6px; background: #142035; }
+.dependency-marker { flex: 0 0 14px; color: var(--mint); font-size: 11px; text-align: center; }
+.dependency-name { min-width: 0; flex: 1; overflow: hidden; color: #dce5f2; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.dependency-status { flex: 0 0 auto; color: #d8c28c; font-size: 8px; }
+.dependency-status.followed { color: #82d8bd; }
+.required-parent { margin-top: 9px; border: 1px solid #31584e; background: #152b2a; }
+.requirements-note { margin: 11px 0 0 !important; color: #8292aa !important; font-size: 9px !important; }
+.requirements-dialog .update-actions { margin-top: 17px; }
 .modal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
 .modal-stats .stat-card { min-height: 66px; padding: 10px; }
 .modal-stats .stat-icon { width: 32px; height: 32px; flex-basis: 32px; }
